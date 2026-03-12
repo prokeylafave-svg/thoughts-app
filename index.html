@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
+<title>Thoughts</title>
+
+<link rel="manifest" href="manifest.json">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Thoughts">
+
+<style>
+
+body{
+margin:0;
+font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+background:#f2f2f2;
+overflow:hidden;
+}
+
+#inputBar{
+position:fixed;
+top:0;
+left:0;
+right:0;
+height:60px;
+font-size:18px;
+padding:15px;
+border:none;
+outline:none;
+box-sizing:border-box;
+background:white;
+box-shadow:0 3px 10px rgba(0,0,0,.08);
+}
+
+#board{
+position:absolute;
+top:60px;
+bottom:0;
+left:0;
+right:0;
+}
+
+.thought{
+position:absolute;
+background:white;
+padding:14px;
+border-radius:12px;
+box-shadow:0 10px 18px rgba(0,0,0,.18);
+max-width:70%;
+font-size:16px;
+touch-action:none;
+}
+
+.fall{
+animation:drop .55s cubic-bezier(.25,.8,.25,1);
+}
+
+@keyframes drop{
+
+0%{
+transform:translateY(-120px) scale(.95);
+opacity:0;
+}
+
+70%{
+transform:translateY(10px) scale(1.02);
+opacity:1;
+}
+
+100%{
+transform:translateY(0);
+}
+
+}
+
+#trash{
+position:fixed;
+bottom:25px;
+right:20px;
+font-size:40px;
+opacity:.6;
+transition:.2s;
+}
+
+#trash.active{
+opacity:1;
+transform:scale(1.25);
+}
+
+</style>
+</head>
+
+<body>
+
+<input id="inputBar" placeholder="Type a thought and press return">
+
+<div id="board"></div>
+
+<div id="trash">🗑</div>
+
+<script>
+
+if("serviceWorker" in navigator){
+navigator.serviceWorker.register("sw.js")
+}
+
+const input = document.getElementById("inputBar")
+const board = document.getElementById("board")
+const trash = document.getElementById("trash")
+
+let thoughts = JSON.parse(localStorage.getItem("thoughts")) || []
+
+function save(){
+localStorage.setItem("thoughts",JSON.stringify(thoughts))
+}
+
+function createThought(text){
+
+const thought={
+id:Date.now(),
+text,
+x:Math.random()*(window.innerWidth-200),
+y:20
+}
+
+thoughts.push(thought)
+save()
+renderThought(thought,true)
+
+}
+
+function renderThought(data,animate=false){
+
+const div=document.createElement("div")
+div.className="thought"
+if(animate) div.classList.add("fall")
+
+div.textContent=data.text
+
+div.style.left=data.x+"px"
+div.style.top=data.y+"px"
+
+board.appendChild(div)
+
+let offsetX=0
+let offsetY=0
+
+div.addEventListener("touchstart",e=>{
+
+const t=e.touches[0]
+
+offsetX=t.clientX-div.offsetLeft
+offsetY=t.clientY-div.offsetTop
+
+})
+
+div.addEventListener("touchmove",e=>{
+
+const t=e.touches[0]
+
+let x=t.clientX-offsetX
+let y=t.clientY-offsetY
+
+div.style.left=x+"px"
+div.style.top=y+"px"
+
+data.x=x
+data.y=y
+
+checkTrash(div)
+
+})
+
+div.addEventListener("touchend",()=>{
+
+if(overTrash(div)){
+div.remove()
+thoughts=thoughts.filter(t=>t.id!==data.id)
+save()
+}else{
+save()
+}
+
+trash.classList.remove("active")
+
+})
+
+}
+
+function overTrash(el){
+
+const trashRect=trash.getBoundingClientRect()
+const elRect=el.getBoundingClientRect()
+
+return(
+
+elRect.right>trashRect.left &&
+elRect.left<trashRect.right &&
+elRect.bottom>trashRect.top &&
+elRect.top<trashRect.bottom
+
+)
+
+}
+
+function checkTrash(el){
+
+if(overTrash(el)){
+trash.classList.add("active")
+}else{
+trash.classList.remove("active")
+}
+
+}
+
+function render(){
+
+board.innerHTML=""
+
+thoughts.forEach(t=>{
+renderThought(t,false)
+})
+
+}
+
+input.addEventListener("keydown",e=>{
+
+if(e.key==="Enter" && input.value.trim()!==""){
+
+createThought(input.value)
+input.value=""
+
+}
+
+})
+
+render()
+
+</script>
+
+</body>
+</html>
